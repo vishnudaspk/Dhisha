@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
+
 import '../providers/sun_provider.dart';
-import '../widgets/azimuth_compass.dart';
+import '../widgets/sun_hero_circle.dart';
 import '../widgets/sun_path_chart.dart';
 import '../widgets/sun_info_strip.dart';
 import '../../../shared/widgets/loading_radar.dart';
-import '../../../shared/widgets/live_compass_ring.dart';
+import '../../../shared/widgets/live_local_time.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../../core/utils/heading_provider.dart';
 
 class SunScreen extends ConsumerWidget {
   const SunScreen({super.key});
@@ -17,171 +18,159 @@ class SunScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final baseSolarAsync = ref.watch(baseSolarPositionProvider);
     final arcsAsync = ref.watch(sunPathArcsProvider);
-    final headingAsync = ref.watch(headingProvider);
-    final heading = headingAsync.valueOrNull ?? 0.0;
 
     return baseSolarAsync.when(
       skipLoadingOnReload: true,
       skipLoadingOnRefresh: true,
-      loading:
-          () =>
-              Center(child: LoadingRadar(color: AppColors.sunAccent(context))),
+      loading: () => Center(child: LoadingRadar(color: AppColors.sunAccent(context))),
       error: (error, _) => _buildError(context, error, ref),
       data: (baseSolar) {
-        return SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-          physics: const BouncingScrollPhysics(),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _SectionHeader(
-                title: 'Sun Position',
-                subtitle:
-                    'Altitude: how high the sun is above the horizon (0° = horizon, 90° = overhead).\nAzimuth: compass bearing to the sun — rotate your phone to align with True North.',
-                color: AppColors.sunAccent(context),
-              ),
-              const SizedBox(height: 32),
+        return Consumer(
+          builder: (context, ref, _) {
+            final liveSolarAsync = ref.watch(liveSolarPositionProvider);
+            final solar = liveSolarAsync.valueOrNull ?? baseSolar;
+            final location = ref.watch(locationProvider).valueOrNull;
 
-              Consumer(
-                builder: (context, ref, child) {
-                  final liveSolarAsync = ref.watch(liveSolarPositionProvider);
-                  final solar = liveSolarAsync.valueOrNull ?? baseSolar;
+            const directions = [
+              'N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE',
+              'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW', 'N',
+            ];
+            final cardinal = directions[((solar.azimuth % 360) / 22.5).round()];
+            final azimuthStr = '${(solar.azimuth % 360).toStringAsFixed(1)}°';
+            final altStr = solar.altitude <= 0
+                ? '—'
+                : '${solar.altitude.toStringAsFixed(1)}°';
 
-                  const directions = [
-                    'N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE',
-                    'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW', 'N',
-                  ];
-                  final cardinal = directions[((solar.azimuth % 360) / 22.5).round()];
+            final sunriseStr = baseSolar.sunrise != null ? DateFormat('h:mma').format(baseSolar.sunrise!).toLowerCase() : '—';
+            final noonStr = DateFormat('h:mma').format(baseSolar.solarNoon).toLowerCase();
+            final sunsetStr = baseSolar.sunset != null ? DateFormat('h:mma').format(baseSolar.sunset!).toLowerCase() : '—';
 
-                  final isNight = solar.altitude <= 0;
-
-                  return Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Fixed readout block — never rotates
-                      Text(
-                        '${(solar.azimuth % 360).toStringAsFixed(1)}°',
-                        style: GoogleFonts.spaceMono(
-                          fontSize: 32,
-                          fontWeight: FontWeight.w400,
-                          color: AppColors.sunAccent(context),
+            return CustomScrollView(
+              physics: const BouncingScrollPhysics(),
+              slivers: [
+                // ── HERO (45% screen height) ──────────────────────────────
+                SliverToBoxAdapter(
+                  child: SizedBox(
+                    height: MediaQuery.of(context).size.height * 0.45,
+                    child: Stack(
+                      children: [
+                        // Big grainy sun circle
+                        Positioned.fill(
+                          child: SunHeroCircle(altitude: solar.altitude),
                         ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        cardinal,
-                        style: GoogleFonts.inter(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w400,
-                          color: AppColors.textPrimary(context).withAlpha(115),
-                          letterSpacing: 2.0,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.baseline,
-                        textBaseline: TextBaseline.alphabetic,
-                        children: [
-                          Text(
-                            'ALT  ',
-                            style: GoogleFonts.inter(
-                              fontSize: 9,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.textPrimary(context).withAlpha(90),
-                              letterSpacing: 1.5,
+                        // "Sun" — huge Fraunces word, bottom-left of hero
+                        Positioned(
+                          left: 24,
+                          bottom: 20,
+                          child: Text(
+                            solar.altitude <= 0 ? 'Night' : 'Sun',
+                            style: Theme.of(context).textTheme.displayLarge?.copyWith(
+                              color: solar.altitude > 50
+                                  ? Colors.white.withAlpha(230)
+                                  : AppColors.textPrimary(context),
                             ),
                           ),
-                          if (isNight) ...[
-                            Text(
-                              '☽',
-                              style: GoogleFonts.spaceMono(
-                                fontSize: 16,
-                                color: const Color(0xFF2E7BFF).withAlpha(153), // Blueprint Blue 60%
-                              ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                // ── PRIMARY CAPSULE ───────────────────────────────────────
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+                    child: _PrimaryCapsule(
+                      label: 'AZIMUTH',
+                      value: azimuthStr,
+                    ),
+                  ),
+                ),
+
+                // ── DATA ROWS ─────────────────────────────────────────────
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Column(
+                      children: [
+                        _DataRow(
+                          label: 'LOCAL TIME', 
+                          valueWidget: LiveLocalTime(
+                            longitude: location?.longitude ?? 0.0,
+                            style: GoogleFonts.spaceMono(
+                              fontSize: 13,
+                              color: AppColors.textPrimary(context),
                             ),
-                          ] else ...[
-                            Text(
-                              '${solar.altitude.toStringAsFixed(1)}°',
-                              style: GoogleFonts.spaceMono(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w400,
-                                color: AppColors.textPrimary(context).withAlpha(180),
-                              ),
-                            ),
-                          ],
-                        ],
+                          ),
+                        ),
+                        _DataRow(label: 'SUNRISE',    value: sunriseStr),
+                        _DataRow(label: 'ALTITUDE',   value: altStr),
+                        _DataRow(label: 'SOLAR NOON', value: noonStr),
+                        _DataRow(label: 'SUNSET',     value: sunsetStr),
+                        _DataRow(
+                          label: 'DIRECTION',
+                          value: '$cardinal — $cardinal',
+                          accent: AppColors.sunAccent(context),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                // ── SCROLL HINT ───────────────────────────────────────────
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 24, 20, 8),
+                    child: Text(
+                      '↓  PATH',
+                      style: GoogleFonts.spaceMono(
+                        fontSize: 10,
+                        letterSpacing: 2.0,
+                        color: AppColors.textPrimary(context).withAlpha(89),
                       ),
-                      const SizedBox(height: 24),
-                      
-                      // Rotating compass below the fixed readout, centered
-                      Center(
-                        child: LiveCompassRing(
-                          heading: heading,
-                          accentColor: AppColors.sunAccent(context),
-                          size: 240,
-                          child: AzimuthCompass(
-                            azimuth: solar.azimuth,
-                            altitude: solar.altitude,
+                    ),
+                  ),
+                ),
+
+                // ── SUN PATH CHART ────────────────────────────────────────
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: arcsAsync.when(
+                      skipLoadingOnReload: true,
+                      skipLoadingOnRefresh: true,
+                      data: (arcs) => SunPathChart(
+                        arcs: arcs,
+                        currentPosition: solar,
+                      ),
+                      loading: () => SizedBox(
+                        height: 200,
+                        child: Center(
+                          child: LoadingRadar(
+                            color: AppColors.sunAccent(context),
+                            size: 48,
                           ),
                         ),
                       ),
-                    ],
-                  );
-                },
-              ),
-              const SizedBox(height: 32),
-
-              _SectionHeader(
-                title: 'Daily Sun Path',
-                subtitle:
-                    "The sun's arc across the sky from sunrise to sunset.\nEach curve represents a different month of the year.",
-                color: AppColors.sunAccent(context),
-              ),
-              const SizedBox(height: 32),
-
-              arcsAsync.when(
-                skipLoadingOnReload: true,
-                skipLoadingOnRefresh: true,
-                data:
-                    (arcs) => Consumer(
-                      builder: (context, ref, child) {
-                        final liveSolarAsync = ref.watch(
-                          liveSolarPositionProvider,
-                        );
-                        final solar = liveSolarAsync.valueOrNull ?? baseSolar;
-                        return SunPathChart(arcs: arcs, currentPosition: solar);
-                      },
+                      error: (_, __) => const SizedBox(height: 200),
                     ),
-                loading:
-                    () => SizedBox(
-                      height: 220,
-                      child: Center(
-                        child: LoadingRadar(
-                          color: AppColors.sunAccent(context),
-                          size: 60,
-                        ),
-                      ),
+                  ),
+                ),
+
+                // ── KEY TIMES STRIP ───────────────────────────────────────
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 24, 20, 40),
+                    child: SunInfoStrip(
+                      sunrise: baseSolar.sunrise,
+                      solarNoon: baseSolar.solarNoon,
+                      sunset: baseSolar.sunset,
                     ),
-                error: (_, __) => const SizedBox(height: 220),
-              ),
-              const SizedBox(height: 32),
-
-              _SectionHeader(
-                title: 'Key Times Today',
-                subtitle: 'Important sun events for your location today.',
-                color: AppColors.sunAccent(context),
-              ),
-              const SizedBox(height: 32),
-
-              SunInfoStrip(
-                sunrise: baseSolar.sunrise,
-                solarNoon: baseSolar.solarNoon,
-                sunset: baseSolar.sunset,
-              ),
-              const SizedBox(height: 32),
-            ],
-          ),
+                  ),
+                ),
+              ],
+            );
+          },
         );
       },
     );
@@ -194,36 +183,22 @@ class SunScreen extends ConsumerWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.error_outline,
-              color: AppColors.error(context),
-              size: 48,
-            ),
+            Icon(Icons.error_outline, color: AppColors.sunAccent(context), size: 40),
             const SizedBox(height: 16),
             Text(
               'Unable to Load Solar Data',
-              style: GoogleFonts.inter(
+              style: GoogleFonts.spaceMono(
                 color: AppColors.textPrimary(context),
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
+                fontSize: 14,
+                letterSpacing: 0.5,
               ),
             ),
             const SizedBox(height: 8),
             Text(
-              'Make sure your location is set correctly.\nSun calculations use your latitude and longitude.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: AppColors.textSecondary(context),
-                fontSize: 12,
-                height: 1.5,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
               error.toString(),
               textAlign: TextAlign.center,
-              style: TextStyle(
-                color: AppColors.textSecondary(context).withAlpha(120),
+              style: GoogleFonts.spaceMono(
+                color: AppColors.textSecondary(context),
                 fontSize: 10,
               ),
               maxLines: 3,
@@ -235,35 +210,12 @@ class SunScreen extends ConsumerWidget {
                 ref.invalidate(locationProvider);
                 ref.invalidate(baseSolarPositionProvider);
               },
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 10,
-                ),
-                decoration: BoxDecoration(
-                  border: Border.all(
-                    color: AppColors.sunAccent(context),
-                    width: 1,
-                  ),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.refresh,
-                      color: AppColors.sunAccent(context),
-                      size: 18,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Retry',
-                      style: TextStyle(
-                        color: AppColors.sunAccent(context),
-                        fontSize: 14,
-                      ),
-                    ),
-                  ],
+              child: Text(
+                'RETRY →',
+                style: GoogleFonts.spaceMono(
+                  fontSize: 11,
+                  letterSpacing: 2.0,
+                  color: AppColors.sunAccent(context),
                 ),
               ),
             ),
@@ -274,136 +226,100 @@ class SunScreen extends ConsumerWidget {
   }
 }
 
-class _SectionHeader extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  final Color color;
+// ─── Shared UI Primitives ─────────────────────────────────────────────────────
 
-  const _SectionHeader({
-    required this.title,
-    required this.subtitle,
-    required this.color,
-  });
+/// Full-width dark capsule — primary metric. inkBlack bg, warmPaper text.
+class _PrimaryCapsule extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _PrimaryCapsule({required this.label, required this.value});
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        Container(
-          width: 3,
-          height: 16,
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(2),
-          ),
-        ),
-        const SizedBox(width: 8),
-        Text(
-          title,
-          style: GoogleFonts.inter(
-            color: AppColors.textPrimary(context),
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 0.5,
-          ),
-        ),
-        _HelpButton(title: title, explanation: subtitle),
-      ],
-    );
-  }
-}
-
-class _HelpButton extends StatelessWidget {
-  final String title;
-  final String explanation;
-
-  const _HelpButton({required this.title, required this.explanation});
-
-  void _showHelp(BuildContext context) {
-    showDialog<void>(
-      context: context,
-      barrierColor: Colors.black.withAlpha(60),
-      builder: (context) {
-        return Dialog(
-          backgroundColor: AppColors.surface(context),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          insetPadding: const EdgeInsets.symmetric(horizontal: 40),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 24, 20, 16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: GoogleFonts.inter(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary(context),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  explanation,
-                  style: GoogleFonts.inter(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w400,
-                    height: 1.6,
-                    color: AppColors.textPrimary(context).withAlpha(180),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: GestureDetector(
-                    onTap: () => Navigator.of(context).pop(),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      child: Text(
-                        'Got it',
-                        style: GoogleFonts.inter(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                          color: AppColors.sunAccent(context),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => _showHelp(context),
-      behavior: HitTestBehavior.opaque,
-      child: SizedBox(
-        width: 44,
-        height: 44,
-        child: Center(
-          child: Text(
-            '?',
-            style: GoogleFonts.inter(
+    const bg = AppColors.capsuleDark;
+    const fg = AppColors.warmPaper;
+    return Container(
+      height: 48,
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: GoogleFonts.spaceMono(
               fontSize: 12,
-              fontWeight: FontWeight.w500,
-              color: AppColors.textPrimary(context).withAlpha(102),
+              letterSpacing: 1.8,
+              color: fg.withAlpha(140),
             ),
           ),
-        ),
+          Text(
+            value,
+            style: GoogleFonts.spaceMono(
+              fontSize: 14,
+              fontWeight: FontWeight.w400,
+              color: fg,
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
+/// One data row: Space Mono label (left) + hairline + value (right).
+class _DataRow extends StatelessWidget {
+  final String label;
+  final String? value;
+  final Widget? valueWidget;
+  final Color? accent;
+
+  const _DataRow({required this.label, this.value, this.valueWidget, this.accent});
+
+  @override
+  Widget build(BuildContext context) {
+    final textColor = AppColors.textPrimary(context);
+    return Column(
+      children: [
+        SizedBox(
+          height: 44,
+          child: Row(
+            children: [
+              Text(
+                label,
+                style: GoogleFonts.spaceMono(
+                  fontSize: 11,
+                  letterSpacing: 1.6,
+                  color: textColor.withAlpha(115),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Container(
+                  height: 0.5,
+                  color: AppColors.hairline,
+                ),
+              ),
+              const SizedBox(width: 8),
+              if (valueWidget != null)
+                valueWidget!
+              else if (value != null)
+                Text(
+                  value!,
+                  style: GoogleFonts.spaceMono(
+                    fontSize: 13,
+                    color: accent ?? textColor,
+                  ),
+                ),
+            ],
+          ),
+        ),
+        Container(height: 0.5, color: AppColors.hairline),
+      ],
+    );
+  }
+}

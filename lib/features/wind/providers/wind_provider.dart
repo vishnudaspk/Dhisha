@@ -10,36 +10,20 @@ final windRepositoryProvider = Provider<WindRepository>(
 
 /// Provider for wind forecast data. Auto-refreshes every 10 minutes.
 final windForecastProvider = FutureProvider<WindForecastData>((ref) async {
-  final locationAsync = ref.watch(locationProvider);
-
-  return locationAsync.when(
-    data: (location) async {
-      final repo = ref.read(windRepositoryProvider);
-      return repo.fetchForecast(
-        latitude: location.latitude,
-        longitude: location.longitude,
-      );
-    },
-    loading: () => throw Exception('Waiting for location...'),
-    error: (e, _) => throw e,
+  final location = await ref.watch(locationProvider.future);
+  final repo = ref.read(windRepositoryProvider);
+  return repo.fetchForecast(
+    latitude: location.latitude,
+    longitude: location.longitude,
   );
 });
 
 /// Provider for seasonal wind data.
-final seasonalWindProvider = FutureProvider<Map<Season, SeasonalWindData>>((
-  ref,
-) async {
-  final locationAsync = ref.watch(locationProvider);
-
-  return locationAsync.when(
-    data: (location) async {
-      final repo = ref.read(windRepositoryProvider);
-      return repo.fetchSeasonalData(
-        latitude: location.latitude,
-        longitude: location.longitude,
-      );
-    },
-    loading: () => throw Exception('Waiting for location...'),
-    error: (e, _) => throw e,
+final seasonalWindProvider = FutureProvider<Map<Season, SeasonalWindData>>((ref) async {
+  final location = await ref.watch(locationProvider.future);
+  final repo = ref.read(windRepositoryProvider);
+  return repo.fetchSeasonalData(
+    latitude: location.latitude,
+    longitude: location.longitude,
   );
 });

@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme/app_theme.dart';
 
-/// Custom animated bottom navigation bar.
-/// Sun icon morphs to Wind icon on tab switch.
+/// Editorial bottom navigation — no icon, no border, no fill.
+/// Active tab: Space Mono label, full opacity + a 2dp accent underline.
+/// Inactive tab: 35% opacity, no underline.
+/// The underline slides between tabs (300ms easeInOut).
 class AppBottomNav extends StatelessWidget {
   final int currentIndex;
   final ValueChanged<int> onTap;
@@ -15,54 +18,49 @@ class AppBottomNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final sunActive  = currentIndex == 0;
+    final windActive = currentIndex == 1;
+
     return Container(
-      decoration: BoxDecoration(
-        color: AppColors.surface(context),
-        border: Border(
-          top: BorderSide(color: AppColors.border(context), width: 0.5),
-        ),
-      ),
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              _NavItem(
-                icon: Icons.wb_sunny_rounded,
-                label: 'SUN',
-                isActive: currentIndex == 0,
-                activeColor: AppColors.sunAccent(context),
-                onTap: () => onTap(0),
-              ),
-              _NavItem(
-                icon: Icons.air_rounded,
-                label: 'WIND',
-                isActive: currentIndex == 1,
-                activeColor: AppColors.windAccent(context),
-                onTap: () => onTap(1),
-              ),
-            ],
+      height: 56 + MediaQuery.of(context).padding.bottom,
+      color: Colors.transparent,
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).padding.bottom),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _NavTab(
+            label: 'SUN',
+            isActive: sunActive,
+            accentColor: AppColors.sunRed,
+            allTextColor: AppColors.textPrimary(context),
+            onTap: () => onTap(0),
           ),
-        ),
+          _NavTab(
+            label: 'WIND',
+            isActive: windActive,
+            accentColor: AppColors.windBlue,
+            allTextColor: AppColors.textPrimary(context),
+            onTap: () => onTap(1),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _NavItem extends StatelessWidget {
-  final IconData icon;
+class _NavTab extends StatelessWidget {
   final String label;
   final bool isActive;
-  final Color activeColor;
+  final Color accentColor;
+  final Color allTextColor;
   final VoidCallback onTap;
 
-  const _NavItem({
-    required this.icon,
+  const _NavTab({
     required this.label,
     required this.isActive,
-    required this.activeColor,
+    required this.accentColor,
+    required this.allTextColor,
     required this.onTap,
   });
 
@@ -71,42 +69,35 @@ class _NavItem extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
-      child: Container(
+      child: SizedBox(
         width: 80,
-        color: Colors.transparent,
         child: Column(
-          mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            AnimatedSwitcher(
-              duration: const Duration(milliseconds: 220),
-              transitionBuilder: (child, animation) {
-                return FadeTransition(opacity: animation, child: child);
-              },
-              child: Icon(
-                icon,
-                key: ValueKey(isActive),
-                color:
-                    isActive
-                        ? AppColors.textPrimary(context)
-                        : AppColors.textSecondary(context).withAlpha(100),
-                size: 24,
-              ),
-            ),
-            const SizedBox(height: 4),
             AnimatedDefaultTextStyle(
-              duration: const Duration(milliseconds: 220),
-              style: TextStyle(
-                fontFamily: 'Inter',
-                fontSize: 10,
-                fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
-                color:
-                    isActive
-                        ? AppColors.textPrimary(context)
-                        : AppColors.textSecondary(context).withAlpha(100),
-                letterSpacing: 0.5,
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeInOut,
+              style: GoogleFonts.spaceMono(
+                fontSize: 11,
+                fontWeight: FontWeight.w400,
+                letterSpacing: 1.6,
+                color: isActive
+                    ? allTextColor
+                    : allTextColor.withAlpha(89), // 35%
               ),
               child: Text(label),
+            ),
+            const SizedBox(height: 4),
+            // Accent underline — slides in/out via AnimatedContainer width
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeInOut,
+              width: isActive ? 24 : 0,
+              height: 2,
+              decoration: BoxDecoration(
+                color: accentColor,
+                borderRadius: BorderRadius.circular(1),
+              ),
             ),
           ],
         ),

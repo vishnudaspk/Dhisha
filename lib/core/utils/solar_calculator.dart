@@ -13,9 +13,9 @@ class SolarCalculator {
   static SolarPosition calculate({
     required double latitude,
     required double longitude,
-    required DateTime dateTime,
+    required DateTime dateTime, // Should be DateTime.now().toUtc() when calling
   }) {
-    final utc = dateTime.toUtc();
+    final utc = dateTime.isUtc ? dateTime : dateTime.toUtc();
     final jd = _julianDate(utc);
     final jc = _julianCentury(jd);
 
@@ -119,8 +119,7 @@ class SolarCalculator {
       isSunrise: false,
     );
 
-    // ── Solar noon as DateTime ──────────────────────────────────────
-    final solarNoon = _minutesToDateTime(solarNoonMinUTC, utc);
+    final solarNoon = _minutesToDateTime(solarNoonMinUTC, utc, longitude);
 
     return SolarPosition(
       altitude: altitude,
@@ -143,13 +142,15 @@ class SolarCalculator {
   }) {
     final points = <SolarPathPoint>[];
 
-    // Use local midnight as reference, then sweep 24 hours
-    final localMidnight = DateTime(date.year, date.month, date.day);
+    // Use local solar midnight as reference
+    final offsetMin = (longitude * 4).round();
+    final localMidUTC = DateTime.utc(date.year, date.month, date.day)
+        .subtract(Duration(minutes: offsetMin));
 
     for (int i = 0; i <= steps; i++) {
       // Sweep from 00:00 to 24:00 local time
       final minuteOfDay = (i * 1440.0 / steps).round();
-      final t = localMidnight.add(Duration(minutes: minuteOfDay));
+      final t = localMidUTC.add(Duration(minutes: minuteOfDay));
 
       final pos = calculate(
         latitude: latitude,
@@ -224,23 +225,31 @@ class SolarCalculator {
             ? 720.0 - 4.0 * (longitude + ha) - eqTimeMinutes
             : 720.0 - 4.0 * (longitude - ha) - eqTimeMinutes;
 
-    return _minutesToDateTime(eventMinUTC, dateUtc);
+    return _minutesToDateTime(eventMinUTC, dateUtc, longitude);
   }
 
   /// Converts fractional minutes from midnight UTC into a DateTime,
-  /// then converts to local time.
-  static DateTime _minutesToDateTime(double minutesUTC, DateTime referenceUtc) {
+  /// shifted by the longitude's solar timezone offset.
+  static DateTime _minutesToDateTime(
+    double minutesUTC,
+    DateTime referenceUtc,
+    double longitude,
+  ) {
     final totalMin = minutesUTC.round();
     final h = (totalMin ~/ 60).clamp(0, 23);
     final m = (totalMin % 60).clamp(0, 59);
 
-    return DateTime.utc(
+    final utcTime = DateTime.utc(
       referenceUtc.year,
       referenceUtc.month,
       referenceUtc.day,
       h,
       m,
-    ).toLocal();
+    );
+
+    // Approximate timezone offset: 15 degrees = 1 hour (4 mins per degree)
+    final offsetMinutes = (longitude * 4).round();
+    return utcTime.add(Duration(minutes: offsetMinutes));
   }
 
   /// Julian Date from a UTC DateTime.

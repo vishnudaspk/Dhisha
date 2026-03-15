@@ -160,18 +160,11 @@ final sunRepositoryProvider = Provider<SunRepository>((ref) => SunRepository());
 
 /// Provider for base current solar position. Loads once and does not tick.
 final baseSolarPositionProvider = FutureProvider<SolarPosition>((ref) async {
-  final locationAsync = ref.watch(locationProvider);
-
-  return locationAsync.when(
-    data: (location) async {
-      final repo = ref.read(sunRepositoryProvider);
-      return repo.getCurrentPosition(
-        latitude: location.latitude,
-        longitude: location.longitude,
-      );
-    },
-    loading: () => throw Exception('Waiting for location...'),
-    error: (e, _) => throw e,
+  final location = await ref.watch(locationProvider.future);
+  final repo = ref.read(sunRepositoryProvider);
+  return repo.getCurrentPosition(
+    latitude: location.latitude,
+    longitude: location.longitude,
   );
 });
 
@@ -202,17 +195,10 @@ final liveSolarPositionProvider = StreamProvider<SolarPosition>((ref) async* {
 
 /// Provider for monthly sun path arcs.
 final sunPathArcsProvider = FutureProvider<List<MonthlyArc>>((ref) async {
-  final locationAsync = ref.watch(locationProvider);
-
-  return locationAsync.when(
-    data: (location) {
-      final repo = ref.read(sunRepositoryProvider);
-      return repo.getMonthlyArcs(
-        latitude: location.latitude,
-        longitude: location.longitude,
-      );
-    },
-    loading: () => throw Exception('Waiting for location...'),
-    error: (e, _) => throw e,
+  final location = await ref.watch(locationProvider.future);
+  final repo = ref.read(sunRepositoryProvider);
+  return repo.getMonthlyArcs(
+    latitude: location.latitude,
+    longitude: location.longitude,
   );
 });

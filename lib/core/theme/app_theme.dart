@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class AppColors {
-  // Shared / Accent colors
-  static Color sunAccent(BuildContext context) => const Color(0xFFE64D2E);
-  static Color windAccent(BuildContext context) => const Color(0xFF2E7BFF);
+  // ── Context-resolved helpers (used throughout the app) ────────────────────
+  static Color sunAccent(BuildContext context) => const Color(0xFFE8392A);
+  static Color windAccent(BuildContext context) => const Color(0xFF1A5CDB);
 
   static Color background(BuildContext context) =>
       Theme.of(context).scaffoldBackgroundColor;
@@ -14,59 +14,60 @@ class AppColors {
   static Color textPrimary(BuildContext context) =>
       Theme.of(context).colorScheme.onSurface;
   static Color textSecondary(BuildContext context) =>
-      Theme.of(context).colorScheme.onSurface.withAlpha(115); // 45%
+      Theme.of(context).colorScheme.onSurface.withAlpha(115);
   static Color error(BuildContext context) =>
       Theme.of(context).colorScheme.error;
 
-  // Structural (Dark) - Precision Instrument OLED
-  static const Color backgroundDark = Color(0xFF0A0A0B);
-  static const Color surfaceDark = Color(0xFF141517);
-  static const Color borderDark = Color(0xFF1B1C1E);
-  static const Color textPrimaryDark = Color(0xFFEDEDED);
+  // ── Editorial palette — Light ──────────────────────────────────────────────
+  static const Color warmPaper     = Color(0xFFF0EDE8); // warm newsprint bg
+  static const Color surfaceLight  = Color(0xFFFAF8F4);
+  static const Color borderLight   = Color(0xFFDDDAD4);
+  static const Color inkBlack      = Color(0xFF1A1A18); // primary text
 
-  // Structural (Light) - Architectural Warm
-  static const Color backgroundLight = Color(0xFFF4F3EF);
-  static const Color surfaceLight = Color(0xFFFFFFFF);
-  static const Color borderLight = Color(0xFFE0DFD8);
-  static const Color textPrimaryLight = Color(0xFF1C1C1A);
+  // ── Editorial palette — Dark ───────────────────────────────────────────────
+  static const Color warmCharcoal  = Color(0xFF0E0D0B); // deep warm charcoal
+  static const Color surfaceDark   = Color(0xFF191816);
+  static const Color borderDark    = Color(0xFF2A2826);
+  static const Color textPrimaryDark = Color(0xFFEDEBE6);
 
-  // Seasonal constants - now mapped to monochrome to follow Dieter Rams "Earn your color" rule #2
-  // We keep them so that the map in seasonal_rose doesn't break conceptually, but they render minimally.
-  static const Color summerCoral = Color(0xFFE64D2E);
-  static const Color monsoonTeal = Color(0xFF2E7BFF);
+  // ── Per-tab hero accent — one per screen only ─────────────────────────────
+  static const Color sunRed    = Color(0xFFE8392A);
+  static const Color windBlue  = Color(0xFF1A5CDB);
 
-  // Status colors mapped to minimalist aesthetics
-  static const Color calm = Color(0xFF636366); // Monochrome
-  static const Color moderate = Color(0xFF2E7BFF); // Blueprint
-  static const Color strong = Color(0xFFE64D2E); // Vermilion
+  // ── Structural ────────────────────────────────────────────────────────────
+  static const Color hairline    = Color(0x14000000); // 8% black, row dividers
+  static const Color capsuleDark = Color(0xFF1A1A18); // dark primary capsule
+
+  // ── Legacy constants — keep so seasonal_rose etc. don't break ─────────────
+  static const Color summerCoral = Color(0xFFE8392A);
+  static const Color monsoonTeal = Color(0xFF1A5CDB);
+  static const Color calm        = Color(0xFF636366);
+  static const Color moderate    = Color(0xFF1A5CDB);
+  static const Color strong      = Color(0xFFE8392A);
 }
 
 class AppTheme {
-  static ThemeData get lightTheme {
-    return _buildTheme(
-      brightness: Brightness.light,
-      backgroundColor: AppColors.backgroundLight,
-      surfaceColor: AppColors.surfaceLight,
-      textColor: AppColors.textPrimaryLight,
-      borderColor: AppColors.borderLight,
-      primaryColor: const Color(0xFFE64D2E),
-      secondaryColor: const Color(0xFF2E7BFF),
-      errorColor: const Color(0xFFE64D2E),
-    );
-  }
+  static ThemeData get lightTheme => _buildTheme(
+    brightness: Brightness.light,
+    backgroundColor: AppColors.warmPaper,
+    surfaceColor: AppColors.surfaceLight,
+    textColor: AppColors.inkBlack,
+    borderColor: AppColors.borderLight,
+    primaryColor: AppColors.sunRed,
+    secondaryColor: AppColors.windBlue,
+    errorColor: AppColors.sunRed,
+  );
 
-  static ThemeData get darkTheme {
-    return _buildTheme(
-      brightness: Brightness.dark,
-      backgroundColor: AppColors.backgroundDark,
-      surfaceColor: AppColors.surfaceDark,
-      textColor: AppColors.textPrimaryDark,
-      borderColor: AppColors.borderDark,
-      primaryColor: const Color(0xFFE64D2E),
-      secondaryColor: const Color(0xFF2E7BFF),
-      errorColor: const Color(0xFFE64D2E),
-    );
-  }
+  static ThemeData get darkTheme => _buildTheme(
+    brightness: Brightness.dark,
+    backgroundColor: AppColors.warmCharcoal,
+    surfaceColor: AppColors.surfaceDark,
+    textColor: AppColors.textPrimaryDark,
+    borderColor: AppColors.borderDark,
+    primaryColor: AppColors.sunRed,
+    secondaryColor: AppColors.windBlue,
+    errorColor: AppColors.sunRed,
+  );
 
   static ThemeData _buildTheme({
     required Brightness brightness,
@@ -104,19 +105,19 @@ class AppTheme {
       ),
       dividerColor: borderColor,
       textTheme: _buildTextTheme(textColor),
-      cardTheme: CardThemeData(
-        color: surfaceColor,
+      cardTheme: const CardThemeData(
+        color: Colors.transparent,
         elevation: 0,
         shadowColor: Colors.transparent,
         shape: RoundedRectangleBorder(
-          borderRadius: const BorderRadius.all(Radius.circular(0)),
+          borderRadius: BorderRadius.all(Radius.circular(0)),
           side: BorderSide.none,
         ),
       ),
       bottomNavigationBarTheme: BottomNavigationBarThemeData(
-        backgroundColor: surfaceColor,
+        backgroundColor: Colors.transparent,
         selectedItemColor: textColor,
-        unselectedItemColor: textColor.withAlpha(115),
+        unselectedItemColor: textColor.withAlpha(89),
         elevation: 0,
       ),
     );
@@ -124,53 +125,57 @@ class AppTheme {
 
   static TextTheme _buildTextTheme(Color textPrimary) {
     return TextTheme(
-      // Primary Data (Space Mono, large, full opacity)
-      displayLarge: GoogleFonts.spaceMono(
+      // Hero display — Fraunces ExtraBold 72sp
+      // "Sun", "Wind", cardinal direction — the ONE big editorial word per screen
+      displayLarge: GoogleFonts.fraunces(
+        fontSize: 72,
+        fontWeight: FontWeight.w800,
+        color: textPrimary,
+        height: 0.95,
+      ),
+      // Sub-hero numerals — Space Mono 36sp (azimuth °, speed m/s)
+      displayMedium: GoogleFonts.spaceMono(
         fontSize: 36,
         fontWeight: FontWeight.w400,
         color: textPrimary,
       ),
-      displayMedium: GoogleFonts.spaceMono(
-        fontSize: 28,
+      // Data row label — Space Mono ALL CAPS 12sp, tracked 0.15em
+      titleLarge: GoogleFonts.spaceMono(
+        fontSize: 12,
         fontWeight: FontWeight.w400,
         color: textPrimary,
+        letterSpacing: 1.8,
       ),
-      // Section Headers (Inter Medium, 13sp, 0.08em letter spacing, 70% op)
-      titleLarge: GoogleFonts.inter(
-        fontSize: 16,
-        fontWeight: FontWeight.w600,
-        color: textPrimary,
-        letterSpacing: 0.02,
+      // Capsule label variant — slightly dimmed
+      titleMedium: GoogleFonts.spaceMono(
+        fontSize: 12,
+        fontWeight: FontWeight.w400,
+        color: textPrimary.withAlpha(178),
+        letterSpacing: 1.8,
       ),
-      titleMedium: GoogleFonts.inter(
-        fontSize: 13,
-        fontWeight: FontWeight.w500,
-        color: textPrimary.withAlpha(178), // ~70%
-        letterSpacing: 1.04,
-      ),
-      // Body (Inter Regular, NEVER bold for body)
+      // Body / explanation text — Inter Regular 14sp, generous leading
       bodyLarge: GoogleFonts.inter(
         fontSize: 14,
         fontWeight: FontWeight.w400,
         color: textPrimary,
+        height: 1.6,
       ),
       bodyMedium: GoogleFonts.inter(
         fontSize: 13,
         fontWeight: FontWeight.w400,
         color: textPrimary.withAlpha(115),
       ),
-      // Secondary Labels (Inter, 11sp, 0.12em letter spacing, 45% op)
-      labelLarge: GoogleFonts.inter(
+      // Micro labels — Space Mono 11sp
+      labelLarge: GoogleFonts.spaceMono(
         fontSize: 11,
         fontWeight: FontWeight.w400,
-        color: textPrimary.withAlpha(115), // ~45%
-        letterSpacing: 1.32,
+        color: textPrimary.withAlpha(115),
+        letterSpacing: 1.4,
       ),
-      // Coordinates / Micro Data (Space Mono, small)
       labelSmall: GoogleFonts.spaceMono(
         fontSize: 10,
         fontWeight: FontWeight.w400,
-        color: textPrimary.withAlpha(115),
+        color: textPrimary.withAlpha(89),
       ),
     );
   }

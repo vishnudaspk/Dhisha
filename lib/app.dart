@@ -678,18 +678,18 @@ class _LocationDialogState extends State<_LocationDialog> {
           // ── Manual coordinate fields ──────────────────────
           _CoordField(
             controller: widget.latController,
-            label: 'Latitude',
-            hint: 'e.g. 25.2048',
+            label: 'Latitude (Use - for South)',
+            hint: 'e.g. 25.2048 or -33.8688',
             icon: Icons.swap_vert,
-            suffix: '°N/S',
+            suffix: '°',
           ),
           const SizedBox(height: 12),
           _CoordField(
             controller: widget.lonController,
-            label: 'Longitude',
-            hint: 'e.g. 55.2708',
+            label: 'Longitude (Use - for West)',
+            hint: 'e.g. -74.0060 for New York',
             icon: Icons.swap_horiz,
-            suffix: '°E/W',
+            suffix: '°',
           ),
           if (_error != null) ...[
             const SizedBox(height: 10),
