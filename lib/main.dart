@@ -24,7 +24,7 @@ void main() async {
   runApp(
     ProviderScope(
       overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
-      child: const SiteScopeApp(),
+      child: const DhishaApp(),
     ),
   );
 }

@@ -13,20 +13,20 @@ import 'features/sun/screens/sun_screen.dart';
 import 'features/wind/screens/wind_screen.dart';
 import 'shared/widgets/bottom_nav.dart';
 
-class SiteScopeApp extends ConsumerWidget {
-  const SiteScopeApp({super.key});
+class DhishaApp extends ConsumerWidget {
+  const DhishaApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final themeMode = ref.watch(themeProvider);
 
     return MaterialApp(
-      title: 'SiteScope',
+      title: 'Dhisha',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: themeMode,
-      home: const SplashScreen(),
+      home: const MainShell(),
     );
   }
 }
