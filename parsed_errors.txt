@@ -1,0 +1,16 @@
+[UNDEFINED_IDENTIFIER: Undefined name 'themeProvider'.] occurs in 1 files. Examples:
+  - C:\\Users\\vishnuu\\Projects\\dhisha\\lib\\app.dart
+[CONST_WITH_NON_CONST: The constructor being called isn't a const constructor.] occurs in 2 files. Examples:
+  - C:\\Users\\vishnuu\\Projects\\dhisha\\lib\\features\\sun\\screens\\sun_screen.dart
+  - C:\\Users\\vishnuu\\Projects\\dhisha\\lib\\features\\wind\\screens\\wind_screen.dart
+[UNDEFINED_IDENTIFIER: Undefined name 'context'.] occurs in 8 files. Examples:
+  - C:\\Users\\vishnuu\\Projects\\dhisha\\lib\\features\\sun\\widgets\\altitude_gauge.dart
+  - C:\\Users\\vishnuu\\Projects\\dhisha\\lib\\features\\sun\\widgets\\azimuth_compass.dart
+  - C:\\Users\\vishnuu\\Projects\\dhisha\\lib\\features\\sun\\widgets\\sun_path_chart.dart
+  - C:\\Users\\vishnuu\\Projects\\dhisha\\lib\\features\\wind\\widgets\\seasonal_rose.dart
+  - C:\\Users\\vishnuu\\Projects\\dhisha\\lib\\features\\wind\\widgets\\wind_compass.dart
+[CONST_EVAL_METHOD_INVOCATION: Methods can't be invoked in constant expressions.] occurs in 2 files. Examples:
+  - C:\\Users\\vishnuu\\Projects\\dhisha\\lib\\shared\\widgets\\bottom_nav.dart
+  - C:\\Users\\vishnuu\\Projects\\dhisha\\lib\\shared\\widgets\\loading_radar.dart
+[UNUSED_IMPORT: Unused import: '../../../core/theme/app_theme.dart'.] occurs in 1 files. Examples:
+  - C:\\Users\\vishnuu\\Projects\\dhisha\\lib\\features\\sun\\screens\\sun_screen.dart
