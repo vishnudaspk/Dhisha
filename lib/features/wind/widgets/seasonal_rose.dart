@@ -1,10 +1,15 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
-import '../../../core/theme/app_theme.dart';
-import '../../../core/utils/wind_statistics.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/physics.dart';
+import 'package:google_fonts/google_fonts.dart';
+import '../../../core/utils/wind_statistics.dart';
 
+/// Full-width seasonal wind table.
+///
+/// Each season is one row:
+///   [SEASON LABEL] ─── [Animated bar] ─ [direction arrow] ─ [figure m/s]
+///
+/// Tapping a row expands a detail chip inline showing Gusts + Direction.
 class SeasonalRose extends StatefulWidget {
   final Map<Season, SeasonalWindData> data;
 
@@ -16,481 +21,313 @@ class SeasonalRose extends StatefulWidget {
 
 class _SeasonalRoseState extends State<SeasonalRose>
     with TickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _summerAnim;
-  late Animation<double> _monsoonAnim;
-  late Animation<double> _winterAnim;
-  late Animation<double> _springAnim;
+  late AnimationController _entryController;
+  late Animation<double> _entryAnim;
 
   Season? _selectedSeason;
-  late AnimationController _springController;
+
+  // SpringController for the selected row pop
+  AnimationController? _springController;
   double _springScale = 1.0;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      duration: const Duration(milliseconds: 800),
+    _entryController = AnimationController(
+      duration: const Duration(milliseconds: 700),
       vsync: this,
     );
 
-    _summerAnim = CurvedAnimation(
-      parent: _controller,
-      curve: const Interval(0.0, 0.5, curve: Curves.easeOutQuart),
-    );
-    _monsoonAnim = CurvedAnimation(
-      parent: _controller,
-      curve: const Interval(0.18, 0.68, curve: Curves.easeOutQuart),
-    );
-    _winterAnim = CurvedAnimation(
-      parent: _controller,
-      curve: const Interval(0.36, 0.86, curve: Curves.easeOutQuart),
-    );
-    _springAnim = CurvedAnimation(
-      parent: _controller,
-      curve: const Interval(0.5, 1.0, curve: Curves.easeOutQuart),
+    _entryAnim = CurvedAnimation(
+      parent: _entryController,
+      curve: Curves.easeOutQuart,
     );
 
     _springController = AnimationController.unbounded(vsync: this);
-    _springController.addListener(() {
-      setState(() {
-        _springScale = _springController.value;
-      });
+    _springController!.addListener(() {
+      setState(() => _springScale = _springController!.value);
     });
 
-    _controller.forward();
-  }
-
-  void _handleTap(Offset localPosition, Size size) {
-    if (widget.data.isEmpty) return;
-
-    final center = Offset(size.width / 2, size.height / 2);
-    final dx = localPosition.dx - center.dx;
-    final dy = localPosition.dy - center.dy;
-
-    // Calculate angle in degrees (0 is North, clockwise)
-    var angle = atan2(dy, dx) * 180 / pi + 90;
-    if (angle < 0) angle += 360;
-
-    // Find closest petal by angle
-    Season? closest;
-    double minDiff = 360;
-
-    for (final entry in widget.data.entries) {
-      final dataAngle = entry.value.direction;
-      var diff = (dataAngle - angle).abs();
-      if (diff > 180) diff = 360 - diff;
-
-      if (diff < minDiff) {
-        minDiff = diff;
-        closest = entry.key;
-      }
-    }
-
-    // If within ~45 degrees of a petal, select it
-    if (closest != null && minDiff <= 45) {
-      if (_selectedSeason == closest) {
-        _selectedSeason = null; // deselect
-      } else {
-        _selectedSeason = closest;
-        _animateSpringTension();
-      }
-    } else {
-      _selectedSeason = null;
-    }
-    setState(() {});
-  }
-
-  void _animateSpringTension() {
-    _springController.value = 1.05; // start slightly expanded
-    final spring = SpringDescription(mass: 1.0, stiffness: 200, damping: 15);
-    final simulation = SpringSimulation(spring, 1.05, 1.0, 0);
-    _springController.animateWith(simulation);
+    _entryController.forward();
   }
 
   @override
   void dispose() {
-    _controller.dispose();
-    _springController.dispose();
+    _entryController.dispose();
+    _springController?.dispose();
     super.dispose();
+  }
+
+  void _selectSeason(Season season) {
+    setState(() {
+      if (_selectedSeason == season) {
+        _selectedSeason = null;
+        _springScale = 1.0;
+      } else {
+        _selectedSeason = season;
+        _springController?.value = 1.05;
+        final spring = SpringDescription(mass: 1, stiffness: 280, damping: 18);
+        final sim = SpringSimulation(spring, 1.05, 1.0, 0);
+        _springController?.animateWith(sim);
+      }
+    });
+  }
+
+  static const _seasonMeta = {
+    Season.summer:  _SeasonMeta('SUMMER',  'Jun–Aug', Color(0xFFFFC857)),
+    Season.monsoon: _SeasonMeta('MONSOON', 'Jul–Sep', Color(0xFF80C4E9)),
+    Season.winter:  _SeasonMeta('WINTER',  'Dec–Feb', Color(0xFFB4C8E1)),
+    Season.spring:  _SeasonMeta('SPRING',  'Mar–May', Color(0xFF7FE0A2)),
+  };
+
+  String _cardinalDir(double deg) {
+    const dirs = ['N','NNE','NE','ENE','E','ESE','SE','SSE',
+                   'S','SSW','SW','WSW','W','WNW','NW','NNW'];
+    return dirs[((deg % 360) / 22.5).round() % 16];
   }
 
   @override
   Widget build(BuildContext context) {
+    if (widget.data.isEmpty) return const SizedBox.shrink();
+
+    final maxSpeed = widget.data.values
+        .map((d) => d.speed)
+        .fold<double>(1.0, (a, b) => a > b ? a : b);
+
     return AnimatedBuilder(
-      animation: Listenable.merge([_controller, _springController]),
+      animation: Listenable.merge([_entryController, _springController!]),
       builder: (context, _) {
-        return Stack(
-          alignment: Alignment.center,
-          clipBehavior: Clip.none,
-          children: [
-            GestureDetector(
-              onTapUp:
-                  (details) =>
-                      _handleTap(details.localPosition, const Size(260, 260)),
+        return Column(
+          children: Season.values.map((season) {
+            final d = widget.data[season];
+            if (d == null) return const SizedBox.shrink();
+
+            final meta = _seasonMeta[season]!;
+            final frac = (d.speed / maxSpeed).clamp(0.1, 1.0);
+            final selected = _selectedSeason == season;
+            final barScale = selected ? _springScale : 1.0;
+            final speedKmh = d.speed * 3.6;
+            final gustKmh  = d.gusts * 3.6;
+            final cardinal = _cardinalDir(d.direction);
+
+            return GestureDetector(
+              onTap: () => _selectSeason(season),
               behavior: HitTestBehavior.opaque,
-              child: CustomPaint(
-                size: const Size(260, 260),
-                painter: _SeasonalRosePainter(
-                  context: context,
-                  data: widget.data,
-                  summerScale: _summerAnim.value,
-                  monsoonScale: _monsoonAnim.value,
-                  winterScale: _winterAnim.value,
-                  springScale: _springAnim.value,
-                  selectedSeason: _selectedSeason,
-                  interactiveScale: _springScale,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                margin: const EdgeInsets.only(bottom: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                decoration: BoxDecoration(
+                  color: selected
+                      ? Colors.white.withAlpha(14)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: selected
+                        ? meta.accent.withAlpha(80)
+                        : Colors.transparent,
+                    width: 0.5,
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // ── Main row ───────────────────────────────────────────
+                    Row(
+                      children: [
+                        // Season label + months
+                        SizedBox(
+                          width: 68,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                meta.label,
+                                style: GoogleFonts.inter(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 1.4,
+                                  color: meta.accent,
+                                ),
+                              ),
+                              Text(
+                                meta.months,
+                                style: GoogleFonts.inter(
+                                  fontSize: 8,
+                                  color: Colors.white.withAlpha(80),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        // Animated bar
+                        Expanded(
+                          child: LayoutBuilder(
+                            builder: (ctx, constraints) {
+                              final barWidth = constraints.maxWidth *
+                                  frac *
+                                  _entryAnim.value *
+                                  barScale;
+                              return Stack(
+                                alignment: Alignment.centerLeft,
+                                children: [
+                                  // Track
+                                  Container(
+                                    height: 2,
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withAlpha(15),
+                                      borderRadius: BorderRadius.circular(1),
+                                    ),
+                                  ),
+                                  // Fill
+                                  AnimatedContainer(
+                                    duration:
+                                        const Duration(milliseconds: 200),
+                                    width: barWidth.clamp(0.0, constraints.maxWidth),
+                                    height: selected ? 4 : 2,
+                                    decoration: BoxDecoration(
+                                      color: meta.accent.withAlpha(
+                                          selected ? 220 : 140),
+                                      borderRadius: BorderRadius.circular(2),
+                                    ),
+                                  ),
+                                ],
+                              );
+                            },
+                          ),
+                        ),
+
+                        const SizedBox(width: 12),
+
+                        // Direction arrow
+                        Transform.rotate(
+                          angle: (d.direction) * pi / 180,
+                          child: Icon(
+                            Icons.arrow_upward_rounded,
+                            size: 12,
+                            color: Colors.white.withAlpha(selected ? 220 : 100),
+                          ),
+                        ),
+
+                        const SizedBox(width: 8),
+
+                        // Speed value
+                        Text(
+                          '${speedKmh.toStringAsFixed(1)}',
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            color: Colors.white.withAlpha(selected ? 230 : 160),
+                            fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                          ),
+                        ),
+                        Text(
+                          ' km/h',
+                          style: GoogleFonts.inter(
+                            fontSize: 8,
+                            color: Colors.white.withAlpha(80),
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    // ── Expandable detail row ───────────────────────────────
+                    AnimatedSize(
+                      duration: const Duration(milliseconds: 230),
+                      curve: Curves.easeOut,
+                      child: selected
+                          ? Padding(
+                              padding: const EdgeInsets.only(top: 8),
+                              child: Row(
+                                children: [
+                                  const SizedBox(width: 68), // align with bar
+                                  _DetailChip(
+                                    label: 'GUSTS',
+                                    value: '${gustKmh.toStringAsFixed(1)} km/h',
+                                    accent: meta.accent,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  _DetailChip(
+                                    label: 'DIR',
+                                    value: cardinal,
+                                    accent: meta.accent,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  _DetailChip(
+                                    label: 'DAYS',
+                                    value: '${d.count}',
+                                    accent: meta.accent,
+                                  ),
+                                ],
+                              ),
+                            )
+                          : const SizedBox.shrink(),
+                    ),
+                  ],
                 ),
               ),
-            ),
-            if (_selectedSeason != null && widget.data[_selectedSeason] != null)
-              _buildDetailCard(
-                widget.data[_selectedSeason!]!,
-                _selectedSeason!,
-              ),
-          ],
+            );
+          }).toList(),
         );
       },
     );
   }
+}
 
-  Widget _buildDetailCard(SeasonalWindData data, Season season) {
-    final seasonName = season.toString().split('.').last.toUpperCase();
-    return Positioned(
-      bottom: -10, // Float right below
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          color: AppColors.surface(context),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: AppColors.textPrimary(context).withAlpha(20),
+// ── Detail chip ────────────────────────────────────────────────────────────────
+
+class _DetailChip extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color accent;
+
+  const _DetailChip({
+    required this.label,
+    required this.value,
+    required this.accent,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: accent.withAlpha(20),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: accent.withAlpha(60), width: 0.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: GoogleFonts.inter(
+              fontSize: 7,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 1.2,
+              color: accent.withAlpha(160),
+            ),
           ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  seasonName,
-                  style: GoogleFonts.inter(
-                    fontSize: 9,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 1.2,
-                    color: AppColors.textSecondary(context),
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '${data.speed.toStringAsFixed(1)} m/s',
-                  style: GoogleFonts.spaceMono(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w400,
-                    color: AppColors.textPrimary(context),
-                  ),
-                ),
-              ],
+          Text(
+            value,
+            style: GoogleFonts.inter(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: Colors.white,
             ),
-            const SizedBox(width: 16),
-            Container(
-              width: 1,
-              height: 24,
-              color: AppColors.textPrimary(context).withAlpha(20),
-            ),
-            const SizedBox(width: 16),
-            Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'GUSTS',
-                  style: GoogleFonts.inter(
-                    fontSize: 9,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 1.2,
-                    color: AppColors.textSecondary(context),
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  data.gusts.toStringAsFixed(1),
-                  style: GoogleFonts.spaceMono(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w400,
-                    color: AppColors.textPrimary(context),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _SeasonalRosePainter extends CustomPainter {
-  final BuildContext context;
-  final Map<Season, SeasonalWindData> data;
-  final double summerScale;
-  final double monsoonScale;
-  final double winterScale;
-  final double springScale;
-  final Season? selectedSeason;
-  final double interactiveScale;
+// ── Internal meta ─────────────────────────────────────────────────────────────
 
-  _SeasonalRosePainter({
-    required this.context,
-    required this.data,
-    required this.summerScale,
-    required this.monsoonScale,
-    required this.winterScale,
-    required this.springScale,
-    required this.selectedSeason,
-    required this.interactiveScale,
-  });
+class _SeasonMeta {
+  final String label;
+  final String months;
+  final Color accent;
 
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    final maxRadius = size.width / 2 - 40;
-
-    // Ring circles: 0.5dp stroke, 12% opacity
-    final bgPaint =
-        Paint()
-          ..color = AppColors.textPrimary(context).withAlpha(30) // 12%
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 0.5;
-
-    for (int i = 1; i <= 3; i++) {
-      canvas.drawCircle(center, maxRadius * i / 3, bgPaint);
-    }
-
-    _drawCompassLabels(canvas, center, maxRadius);
-
-    final maxSpeed = data.values
-        .map((d) => d.speed)
-        .fold<double>(1.0, (a, b) => a > b ? a : b);
-
-    for (final season in Season.values) {
-      final seasonData = data[season];
-      if (seasonData == null) continue;
-
-      final direction = seasonData.direction;
-      final normalizedSpeed = (seasonData.speed / maxSpeed).clamp(0.2, 1.0);
-
-      double scale = 1.0;
-      switch (season) {
-        case Season.summer:
-          scale = summerScale;
-          break;
-        case Season.monsoon:
-          scale = monsoonScale;
-          break;
-        case Season.winter:
-          scale = winterScale;
-          break;
-        case Season.spring:
-          scale = springScale;
-          break;
-      }
-
-      final petalLength = maxRadius * normalizedSpeed * scale;
-      final angle = (direction - 90) * pi / 180;
-
-      final isSelected = selectedSeason == season;
-      final extraScale = isSelected ? interactiveScale : 1.0;
-      final drawLength = petalLength * extraScale + (isSelected ? 8.0 : 0.0);
-
-      final petalColor =
-          isSelected
-              ? AppColors.sunAccent(context)
-              : AppColors.textPrimary(context);
-      _drawPetal(canvas, center, angle, drawLength, petalColor, isSelected);
-
-      // Draw season label line/text if resting and scale > 0.99
-      if (scale > 0.99) {
-        _drawPetalLabel(canvas, center, angle, drawLength, season, isSelected);
-      }
-    }
-
-    // Center point: 4dp filled circle, monochrome
-    canvas.drawCircle(
-      center,
-      4,
-      Paint()..color = AppColors.textPrimary(context),
-    );
-  }
-
-  void _drawCompassLabels(Canvas canvas, Offset center, double radius) {
-    final textPainter = TextPainter(textDirection: TextDirection.ltr);
-
-    final style = GoogleFonts.inter(
-      color: AppColors.textPrimary(context).withAlpha(102), // 40%
-      fontSize: 10,
-      fontWeight: FontWeight.w400,
-    );
-
-    void paintText(String text, Offset pos) {
-      textPainter.text = TextSpan(text: text, style: style);
-      textPainter.layout();
-      textPainter.paint(
-        canvas,
-        Offset(pos.dx - textPainter.width / 2, pos.dy - textPainter.height / 2),
-      );
-    }
-
-    paintText('N', Offset(center.dx, center.dy - radius - 15));
-    paintText('S', Offset(center.dx, center.dy + radius + 15));
-    paintText('E', Offset(center.dx + radius + 15, center.dy));
-    paintText('W', Offset(center.dx - radius - 15, center.dy));
-  }
-
-  void _drawPetal(
-    Canvas canvas,
-    Offset center,
-    double angle,
-    double length,
-    Color baseColor,
-    bool isSelected,
-  ) {
-    if (length <= 0) return;
-
-    final perpAngle = angle + pi / 2;
-    final halfWidth = isSelected ? 16.0 : 14.0;
-
-    final tip = Offset(
-      center.dx + length * cos(angle),
-      center.dy + length * sin(angle),
-    );
-
-    final left = Offset(
-      center.dx + halfWidth * cos(perpAngle),
-      center.dy + halfWidth * sin(perpAngle),
-    );
-
-    final right = Offset(
-      center.dx - halfWidth * cos(perpAngle),
-      center.dy - halfWidth * sin(perpAngle),
-    );
-
-    final path = Path();
-    path.moveTo(left.dx, left.dy);
-    path.lineTo(tip.dx, tip.dy);
-    path.lineTo(right.dx, right.dy);
-    path.close();
-
-    canvas.drawPath(
-      path,
-      Paint()
-        ..color = baseColor.withAlpha(
-          isSelected ? 51 : 38,
-        ) // slightly more opaque if selected
-        ..style = PaintingStyle.fill,
-    );
-
-    canvas.drawPath(
-      path,
-      Paint()
-        ..color = baseColor.withAlpha(isSelected ? 200 : 153)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = isSelected ? 1.5 : 1.0
-        ..strokeJoin = StrokeJoin.miter,
-    );
-  }
-
-  void _drawPetalLabel(
-    Canvas canvas,
-    Offset center,
-    double angle,
-    double length,
-    Season season,
-    bool isSelected,
-  ) {
-    final tip = Offset(
-      center.dx + (length + 4) * cos(angle),
-      center.dy + (length + 4) * sin(angle),
-    );
-    final endPoint = Offset(
-      center.dx + (length + 16) * cos(angle),
-      center.dy + (length + 16) * sin(angle),
-    );
-
-    // Leader line
-    final linePaint =
-        Paint()
-          ..color =
-              isSelected
-                  ? AppColors.sunAccent(context).withAlpha(128)
-                  : AppColors.textPrimary(context).withAlpha(50)
-          ..strokeWidth = 0.8
-          ..style = PaintingStyle.stroke;
-    canvas.drawLine(tip, endPoint, linePaint);
-
-    // Season name and month range
-    final names = {
-      Season.summer: ('SUMMER', 'Jun–Aug'),
-      Season.monsoon: ('MONSOON', 'Jul–Sep'),
-      Season.winter: ('WINTER', 'Dec–Feb'),
-      Season.spring: ('SPRING', 'Mar–May'),
-    };
-    final (name, months) = names[season]!;
-
-    final nameColor =
-        isSelected
-            ? AppColors.sunAccent(context)
-            : AppColors.textPrimary(context).withAlpha(180);
-    final monthColor =
-        isSelected
-            ? AppColors.sunAccent(context).withAlpha(160)
-            : AppColors.textPrimary(context).withAlpha(90);
-
-    final nameTP = TextPainter(
-      text: TextSpan(
-        text: name,
-        style: GoogleFonts.inter(
-          fontSize: 8,
-          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
-          color: nameColor,
-          letterSpacing: 0.8,
-        ),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout();
-
-    final monthTP = TextPainter(
-      text: TextSpan(
-        text: months,
-        style: GoogleFonts.inter(
-          fontSize: 7,
-          fontWeight: FontWeight.w400,
-          color: monthColor,
-        ),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout();
-
-    // Position: extend outward from petal tip
-    final isRight = cos(angle) >= 0;
-    final nameX = isRight ? endPoint.dx + 3 : endPoint.dx - nameTP.width - 3;
-    final monthX = isRight ? endPoint.dx + 3 : endPoint.dx - monthTP.width - 3;
-    final nameY = endPoint.dy - nameTP.height;
-    final monthY = nameY + nameTP.height + 1;
-
-    nameTP.paint(canvas, Offset(nameX, nameY));
-    monthTP.paint(canvas, Offset(monthX, monthY));
-  }
-
-  @override
-  bool shouldRepaint(_SeasonalRosePainter old) =>
-      old.summerScale != summerScale ||
-      old.monsoonScale != monsoonScale ||
-      old.winterScale != winterScale ||
-      old.springScale != springScale ||
-      old.selectedSeason != selectedSeason ||
-      old.interactiveScale != interactiveScale;
+  const _SeasonMeta(this.label, this.months, this.accent);
 }

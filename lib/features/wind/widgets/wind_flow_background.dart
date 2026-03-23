@@ -1,12 +1,19 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
-import 'dart:ui' as ui;
 
+/// Dhisha — Aerodynamic Wind Tunnel Background
+///
+/// Design goals:
+///  • Strict Dieter Rams minimalist aesthetic, matching a high-end physical instrument.
+///  • No decorative particle blobs, no cartoon arrows.
+///  • Uses physical aero-elastic fluid strings (tufts) suspended in an infinite tunnel.
+///  • Strings stretch and whip dynamically based on mathematical wind speed turbulence.
+///  • Transverse calibration struts provide a measurable sense of velocity.
 class WindFlowBackground extends StatefulWidget {
-  final double windDirectionDegrees; // FROM direction
+  final double windDirectionDegrees;
   final double windSpeedMps;
-  final double heading; // Device gyro heading
+  final double heading;
 
   const WindFlowBackground({
     super.key,
@@ -16,179 +23,197 @@ class WindFlowBackground extends StatefulWidget {
   });
 
   @override
-  State<WindFlowBackground> createState() => _WindFlowBackgroundState();
+  State<WindFlowBackground> createState() => _State();
 }
 
-class WindParticle {
-  Offset pos;
-  final List<Offset> trail = [];
-  double speedMultiplier;
-  int maxTrailLen;
-
-  WindParticle({
-    required this.pos,
-    required this.speedMultiplier,
-    required this.maxTrailLen,
-  });
-}
-
-class _WindFlowBackgroundState extends State<WindFlowBackground>
+class _State extends State<WindFlowBackground>
     with SingleTickerProviderStateMixin {
   late Ticker _ticker;
   double _lastTime = 0;
-  final List<WindParticle> _particles = [];
-  final ValueNotifier<int> _tickNotifier = ValueNotifier(0);
-  final Random _random = Random(); // Persistent random instance prevents seed overlap
+  double _elapsed = 0;
+
+  final ValueNotifier<int> _tick = ValueNotifier(0);
+
+  double _smoothHeading = 0;
+  bool _headingInit = false;
 
   @override
   void initState() {
     super.initState();
-    _initParticles();
     _ticker = createTicker(_onTick)..start();
   }
 
-  @override
-  void didUpdateWidget(WindFlowBackground oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    // When heading/speed updates from Riverpod, we do NOT want to clear _particles!
-    // We just let the next tick automatically use the new widget.heading and widget.windSpeedMps.
-    // This allows the particles to bend fluidly instead of restarting.
-  }
-
-  void _initParticles() {
-    // 200 to 2800 particles (using whatever the user set).
-    // Spread them uniformly across a massive 2000x2000 bounding box
-    // so there is absolutely no clustering bias on initial load.
-    for (int i = 0; i < 2800; i++) {
-      _particles.add(
-        WindParticle(
-          pos: Offset(
-            (_random.nextDouble() - 0.5) * 2000, // X: -1000 to +1000
-            (_random.nextDouble() - 0.5) * 2000, // Y: -1000 to +1000
-          ),
-          speedMultiplier: 0.5 + _random.nextDouble() * 0.8,
-          // 30 to 70 length trails
-          maxTrailLen: 30 + _random.nextInt(40),
-        ),
-      );
-    }
-  }
-
   void _onTick(Duration elapsed) {
-    double t = elapsed.inMicroseconds / 1000000.0;
-    double dt = t - _lastTime;
+    final t = elapsed.inMicroseconds / 1e6;
+    final dt = (t - _lastTime).clamp(0.0, 0.05);
     _lastTime = t;
-    if (dt > 0.1) dt = 0.1;
+    _elapsed = t;
 
-    // Speed in m/s → pixels/s scale. 1 m/s ≈ 6 px/s feels realistic.
-    final baseSpeedPx = (widget.windSpeedMps * 6.0).clamp(4.0, 60.0);
-
-    // ── Direction math ─────────────────────────────────────────────────────
-    // windDirectionDegrees = FROM direction (meteorological, True North).
-    // We want the TO direction: FROM + 180°.
-    // Then subtract device heading so strokes stay anchored to geography
-    // regardless of which way the phone is pointed.
-    //
-    // Flutter canvas: X+ = right, Y+ = down, with centre at 0,0.
-    // For a compass bearing B (0=North/up, 90=East/right):
-    //   dx =  sin(B_rad)   → positive = right  ✓
-    //   dy = -cos(B_rad)   → positive = down   (canvas Y is inverted vs math)
-    //
-    // Old code used (deg - 90)*pi/180 and then cos/sin which gave the right
-    // dx but a *wrong* dy sign (North-bound strokes moved DOWN, not UP).
-    final toDeg = (widget.windDirectionDegrees + 180.0 - widget.heading) % 360.0;
-    final toRad = toDeg * pi / 180.0;
-    final dx =  sin(toRad);
-    final dy = -cos(toRad);
-    // ───────────────────────────────────────────────────────────────────────
-
-    for (var p in _particles) {
-      p.pos += Offset(dx, dy) * baseSpeedPx * p.speedMultiplier * dt;
-      p.trail.add(p.pos);
-      if (p.trail.length > p.maxTrailLen) {
-        p.trail.removeAt(0);
-      }
-
-      // Hard wrap-around on a 2000x2000 grid centered at (0,0).
-      // This mathematically guarantees particles can NEVER compress into a single line.
-      // E.g., if a particle hits X = 1000, it instantly wraps to X = -1000.
-      bool wrapped = false;
-      if (p.pos.dx > 1000) { p.pos = Offset(-1000, p.pos.dy); wrapped = true; }
-      else if (p.pos.dx < -1000) { p.pos = Offset(1000, p.pos.dy); wrapped = true; }
-
-      if (p.pos.dy > 1000) { p.pos = Offset(p.pos.dx, -1000); wrapped = true; }
-      else if (p.pos.dy < -1000) { p.pos = Offset(p.pos.dx, 1000); wrapped = true; }
-
-      if (wrapped) {
-        p.trail.clear();
-        // Give it a slightly new random speed/length so patterns don't repeat exactly
-        p.speedMultiplier = 0.5 + _random.nextDouble() * 0.8;
-        p.maxTrailLen = 30 + _random.nextInt(40);
-      }
+    // Smooth heading via snappier spherical spring
+    if (!_headingInit) {
+      _smoothHeading = widget.heading;
+      _headingInit = true;
+    } else {
+      double d = (widget.heading - _smoothHeading) % 360.0;
+      if (d > 180) d -= 360;
+      if (d < -180) d += 360;
+      _smoothHeading = (_smoothHeading + d * dt * 8.0) % 360.0;
     }
-    // Trigger repaint without rebuilding complete Widget tree
-    _tickNotifier.value++;
+
+    _tick.value++;
   }
 
   @override
   void dispose() {
     _ticker.dispose();
-    _tickNotifier.dispose();
+    _tick.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return CustomPaint(
-      size: Size.infinite,
-      painter: _WindFlowPainter(particles: _particles, tick: _tickNotifier),
+    final isLight = Theme.of(context).brightness == Brightness.light;
+    final Color inkColor =
+        isLight ? const Color(0xFF1A3A5C) : const Color(0xFF7AAEE8);
+
+    return ValueListenableBuilder<int>(
+      valueListenable: _tick,
+      builder:
+          (context, tick, child) => CustomPaint(
+            size: Size.infinite,
+            painter: _InstrumentPainter(
+              windDir: widget.windDirectionDegrees,
+              windSpeed: widget.windSpeedMps,
+              headingRad: _smoothHeading * pi / 180.0,
+              inkColor: inkColor,
+              time: _elapsed,
+            ),
+          ),
     );
   }
 }
 
-class _WindFlowPainter extends CustomPainter {
-  final List<WindParticle> particles;
+class _InstrumentPainter extends CustomPainter {
+  final double windDir;
+  final double windSpeed;
+  final double headingRad;
+  final Color inkColor;
+  final double time;
 
-  _WindFlowPainter({required this.particles, required Listenable tick})
-    : super(repaint: tick);
+  _InstrumentPainter({
+    required this.windDir,
+    required this.windSpeed,
+    required this.headingRad,
+    required this.inkColor,
+    required this.time,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    canvas.translate(center.dx, center.dy);
+    final w = size.width;
+    final h = size.height;
 
-    final paint =
+    // Expand the bounding box substantially so edges never pop onscreen during rotation
+    final span = sqrt(w * w + h * h) * 1.3;
+
+    canvas.save();
+    canvas.translate(w / 2, h / 2);
+
+    // Rotate so that the local +Y axis exactly matches the physical wind travel direction.
+    // Mathematical rotation maps wind meteorological origin against the physical compass view.
+    canvas.rotate((windDir - (headingRad * 180.0 / pi)) * pi / 180.0);
+
+    final speedN = (windSpeed / 15.0).clamp(0.0, 1.0);
+
+    // ── 1. Calibration Struts (Transverse panning grid) ───────────────────
+    final strutPaint =
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..color = inkColor.withValues(alpha: 0.05)
+          ..strokeWidth = 0.5;
+
+    final travelVelocity = 18.0 + windSpeed * 8.0;
+    const strutSpacing = 160.0;
+
+    // Smoothly scroll the visual lattice across the screen based on time,
+    // wrapping seamlessly to create an infinitely infinite plane.
+    final scrollOffset = (time * travelVelocity) % strutSpacing;
+
+    for (
+      double y = -span / 2 - strutSpacing;
+      y <= span / 2 + strutSpacing;
+      y += strutSpacing
+    ) {
+      final drawY = y + scrollOffset;
+      if (drawY > -span / 2 && drawY < span / 2) {
+        canvas.drawLine(
+          Offset(-span / 2, drawY),
+          Offset(span / 2, drawY),
+          strutPaint,
+        );
+      }
+    }
+
+    // ── 2. Aerodynamic fluid strings (Longitudinal waving lines) ──────────
+    final linePaint =
         Paint()
           ..style = PaintingStyle.stroke
           ..strokeCap = StrokeCap.round
-          ..strokeWidth = 1.0;
+          ..strokeJoin = StrokeJoin.round;
 
-    for (var p in particles) {
-      if (p.trail.length < 2) continue;
+    const strings = 13; // Higher density for scientific instrument feel
+    final gap = span / (strings - 1);
 
+    // Physical wobble parameters
+    // Calm wind = perfectly rigid piano wire.
+    // Gale force = flailing whip lines.
+    final turbulence = 2.0 + speedN * 55.0;
+    final wavePropagationSpeed = 1.0 + windSpeed * 0.45;
+
+    for (int i = 0; i < strings; i++) {
+      final baseX = -span / 2 + i * gap;
       final path = Path();
-      path.moveTo(p.trail.first.dx, p.trail.first.dy);
-      // Construct the bending tail
-      for (int i = 1; i < p.trail.length; i++) {
-        path.lineTo(p.trail[i].dx, p.trail[i].dy);
+
+      const step = 20.0;
+      bool first = true;
+
+      for (double y = -span / 2; y <= span / 2; y += step) {
+        // Wave travels physically down the string (+Y direction) over time.
+        // It creates a brilliant fluid illusion.
+        final phase = y * 0.012 - time * wavePropagationSpeed;
+
+        // Harmonic interference simulates complex fluid aerodynamic eddies
+        final w1 = sin(phase + i * 1.34) * 0.45;
+        final w2 = cos(phase * 1.62 - i * 0.83) * 0.35;
+        final w3 = sin(phase * 0.38 + i * 2.11) * 0.15;
+        final w4 =
+            sin(phase * 2.8 + i * 3.7) *
+            0.05; // high frequency flutter for extreme winds
+
+        final wobble = (w1 + w2 + w3 + w4) * turbulence;
+        final px = baseX + wobble;
+
+        if (first) {
+          path.moveTo(px, y);
+          first = false;
+        } else {
+          path.lineTo(px, y);
+        }
       }
 
-      final head = p.pos;
-      final tail = p.trail.first;
-      if (head == tail) continue;
+      // Edge strings fade out elegantly out to frame the dial
+      final edgeFade = sin((i / (strings - 1)) * pi);
+      final opacity = (0.02 + edgeFade * 0.18).clamp(0.0, 1.0);
 
-      // Fading tail: head is solid(ish) up to 50%, tail is 0 opacity
-      paint.shader = ui.Gradient.linear(head, tail, [
-        Colors.white.withAlpha(
-          (127 * p.speedMultiplier).toInt().clamp(20, 127),
-        ),
-        Colors.white.withAlpha(0),
-      ]);
+      linePaint.color = inkColor.withValues(alpha: opacity);
+      linePaint.strokeWidth = 0.5 + edgeFade * 0.9;
 
-      canvas.drawPath(path, paint);
+      canvas.drawPath(path, linePaint);
     }
+
+    canvas.restore();
   }
 
   @override
-  bool shouldRepaint(covariant _WindFlowPainter oldDelegate) => true; // driven by tick
+  bool shouldRepaint(covariant _InstrumentPainter old) => true;
 }

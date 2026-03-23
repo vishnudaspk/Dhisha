@@ -6,7 +6,7 @@ class ApiConstants {
 
   static String forecastUrl(double lat, double lon) =>
       '$openMeteoForecastBase?latitude=$lat&longitude=$lon'
-      '&hourly=wind_speed_10m,wind_direction_10m,relative_humidity_2m'
+      '&hourly=wind_speed_10m,wind_direction_10m,relative_humidity_2m,temperature_2m'
       '&daily=wind_direction_10m_dominant'
       '&wind_speed_unit=ms'
       '&forecast_days=1';

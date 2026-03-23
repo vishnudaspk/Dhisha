@@ -72,6 +72,14 @@ class WindRepository {
         ? (humidity[currentHourIndex] ?? 0.0)
         : 0.0;
 
+    final temp =
+        (hourly['temperature_2m'] as List?)
+            ?.map<double?>((e) => e != null ? (e as num).toDouble() : null)
+            .toList();
+    final currentTemp = (temp != null && temp.length > currentHourIndex)
+        ? (temp[currentHourIndex] ?? 0.0)
+        : 0.0;
+
     // Compute statistical primary/secondary directions from past data only
     final dirResult = WindStatistics.findPrimarySecondary(
       windDirs.isNotEmpty ? windDirs : [currentWindDir],
@@ -85,6 +93,7 @@ class WindRepository {
       currentSpeed: currentSpeed,
       gustSpeed: gustSpeed,
       humidity: currentHumidity,
+      temperature: currentTemp,
       meanDirection: WindStatistics.circularMean(
         windDirs.isNotEmpty ? windDirs : [currentWindDir],
       ),
@@ -186,6 +195,7 @@ class WindForecastData {
   final double currentSpeed; // m/s
   final double gustSpeed;    // m/s – peak of past hours today
   final double humidity;
+  final double temperature;
   final double meanDirection;
 
   const WindForecastData({
@@ -195,6 +205,7 @@ class WindForecastData {
     required this.currentSpeed,
     required this.gustSpeed,
     required this.humidity,
+    required this.temperature,
     required this.meanDirection,
   });
 }

@@ -23,14 +23,14 @@ class WindInfoStrip extends StatelessWidget {
       children: [
         PillCard(
           icon: Icons.air,
-          value: '${currentSpeed.toStringAsFixed(1)} km/h',
+          value: '${(currentSpeed * 3.6).toStringAsFixed(1)} km/h',
           color: AppColors.windAccent(context),
           label: 'WIND SPEED',
           description: 'Current ground-level wind speed',
         ),
         PillCard(
           icon: Icons.storm,
-          value: '${gustSpeed.toStringAsFixed(1)} km/h',
+          value: '${(gustSpeed * 3.6).toStringAsFixed(1)} km/h',
           color: AppColors.windAccent(context),
           label: 'PEAK GUST',
           description: "Today's strongest wind burst",

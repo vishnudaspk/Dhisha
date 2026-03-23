@@ -19,7 +19,7 @@ class ThemeNotifier extends StateNotifier<ThemeMode> {
     final savedTheme = prefs.getString(_themeKey);
     if (savedTheme == 'light') return ThemeMode.light;
     if (savedTheme == 'dark') return ThemeMode.dark;
-    return ThemeMode.system;
+    return ThemeMode.light;
   }
 
   void setTheme(ThemeMode mode) {

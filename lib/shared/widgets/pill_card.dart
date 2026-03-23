@@ -65,8 +65,8 @@ class PillCard extends StatelessWidget {
                   child: Text(
                     value,
                     key: ValueKey(value),
-                    style: GoogleFonts.spaceMono(
-                      fontSize: 13,
+                    style: GoogleFonts.inter(
+                      fontSize: 14,
                       fontWeight: FontWeight.w600,
                       color: AppColors.textPrimary(context),
                     ),
@@ -80,8 +80,8 @@ class PillCard extends StatelessWidget {
             const SizedBox(height: 3),
             Text(
               label,
-              style: GoogleFonts.spaceMono(
-                fontSize: 8,
+              style: GoogleFonts.inter(
+                fontSize: 9,
                 color: color.withAlpha(180),
                 letterSpacing: 1.2,
                 fontWeight: FontWeight.w600,
@@ -93,8 +93,8 @@ class PillCard extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               description,
-              style: GoogleFonts.spaceMono(
-                fontSize: 7,
+              style: GoogleFonts.inter(
+                fontSize: 9,
                 color: AppColors.textSecondary(context).withAlpha(160),
                 height: 1.3,
               ),

@@ -14,8 +14,12 @@ void main() async {
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
       statusBarIconBrightness: Brightness.light,
-      systemNavigationBarColor: Color(0xFF161B22),
+      systemNavigationBarColor:
+          Colors.transparent, // Let flutter draw under it fully
       systemNavigationBarIconBrightness: Brightness.light,
+      systemNavigationBarContrastEnforced:
+          false, // Prevent Android from injecting a white box
+      systemStatusBarContrastEnforced: false,
     ),
   );
 

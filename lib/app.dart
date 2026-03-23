@@ -3,12 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:flutter/services.dart';
 
 import 'shared/widgets/dhisha_logo.dart';
 import 'features/sun/providers/sun_provider.dart';
 import 'features/wind/providers/wind_provider.dart';
 import 'core/theme/app_theme.dart';
-import 'core/theme/theme_provider.dart';
+
 import 'features/sun/screens/sun_screen.dart';
 import 'features/wind/screens/wind_screen.dart';
 import 'shared/widgets/bottom_nav.dart';
@@ -18,14 +19,12 @@ class DhishaApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final themeMode = ref.watch(themeProvider);
-
     return MaterialApp(
       title: 'Dhisha',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
-      themeMode: themeMode,
+      themeMode: ThemeMode.light,
       home: const MainShell(),
     );
   }
@@ -280,20 +279,24 @@ class _MainShellState extends ConsumerState<MainShell> {
     final useGps = ref.watch(useGpsProvider);
     final locationAsync = ref.watch(locationProvider);
 
-    return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: SafeArea(
-        child: Column(
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.light,
+        systemNavigationBarColor: Colors.transparent,
+        systemNavigationBarIconBrightness: Brightness.light,
+        systemNavigationBarDividerColor: Colors.transparent,
+        systemNavigationBarContrastEnforced: false,
+        systemStatusBarContrastEnforced: false,
+      ),
+      child: Scaffold(
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        extendBodyBehindAppBar: true,
+        extendBody: true, // Let background bleed into bottom nav
+        body: Stack(
           children: [
-            // ── Live coordinate bar ──────────────────────────────
-            _LocationBar(
-              useGps: useGps,
-              locationAsync: locationAsync,
-              onTap: () => _showLocationDialog(),
-            ),
-
-            // ── Screen content ───────────────────────────────────
-            Expanded(
+            // ── Screen content (Full Screen Background) ─────────
+            Positioned.fill(
               child: AnimatedSwitcher(
                 duration: const Duration(milliseconds: 200),
                 transitionBuilder: (child, animation) {
@@ -319,16 +322,28 @@ class _MainShellState extends ConsumerState<MainShell> {
                 ),
               ),
             ),
+            
+            // ── Top Location Bar (Floating on top) ─────────────
+            Positioned(
+              top: MediaQuery.of(context).padding.top + 8,
+              left: 16,
+              right: 16,
+              child: _LocationBar(
+                useGps: useGps,
+                locationAsync: locationAsync,
+                onTap: () => _showLocationDialog(),
+              ),
+            ),
           ],
         ),
-      ),
-      bottomNavigationBar: AppBottomNav(
-        currentIndex: _currentIndex,
-        onTap: (index) {
-          if (index != _currentIndex) {
-            setState(() => _currentIndex = index);
-          }
-        },
+        bottomNavigationBar: AppBottomNav(
+          currentIndex: _currentIndex,
+          onTap: (index) {
+            if (index != _currentIndex) {
+              setState(() => _currentIndex = index);
+            }
+          },
+        ),
       ),
     );
   }
@@ -336,7 +351,7 @@ class _MainShellState extends ConsumerState<MainShell> {
 
 // ─── Location Bar (top of screen) ────────────────────────────────────────────
 
-class _LocationBar extends ConsumerWidget {
+class _LocationBar extends StatelessWidget {
   final bool useGps;
   final AsyncValue<Position> locationAsync;
   final VoidCallback onTap;
@@ -348,36 +363,32 @@ class _LocationBar extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final themeMode = ref.watch(themeProvider);
+  Widget build(BuildContext context) {
+    const fg = Colors.white;
+    final fgSec = Colors.white.withAlpha(180);
+    final bg = Colors.white.withAlpha(22);
+    const border = Colors.white;
+
     return ClipRRect(
-      borderRadius: BorderRadius.circular(22), // 44dp height / 2
+      borderRadius: BorderRadius.circular(22),
       child: BackdropFilter(
-        filter: ui.ImageFilter.blur(sigmaX: 2, sigmaY: 2),
-        child: Container(
-          height: 44,
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          decoration: BoxDecoration(
-            color: AppColors.surface(context).withAlpha(220),
-            borderRadius: BorderRadius.circular(22),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withAlpha(
-                  30,
-                ), // 12% in decimal roughly 30/255
-                blurRadius: 16,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              // Left: Text-only GPS/Manual toggle + Divider
-              GestureDetector(
-                onTap: onTap,
-                behavior: HitTestBehavior.opaque,
-                child: Row(
+        filter: ui.ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+        child: GestureDetector(
+          onTap: onTap,
+          behavior: HitTestBehavior.opaque,
+          child: Container(
+            height: 44,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            decoration: BoxDecoration(
+              color: bg,
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(color: border.withAlpha(40), width: 0.5),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                // Left: GPS/Manual label + divider
+                Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
@@ -386,113 +397,70 @@ class _LocationBar extends ConsumerWidget {
                         fontSize: 10,
                         fontWeight: FontWeight.w600,
                         letterSpacing: 0.5,
-                        color: AppColors.textPrimary(context),
+                        color: fg,
                       ),
                     ),
                     const SizedBox(width: 8),
                     Container(
                       width: 1,
                       height: 12,
-                      color: AppColors.textPrimary(
-                        context,
-                      ).withAlpha(51), // 20% opacity
+                      color: fg.withAlpha(51),
                     ),
                   ],
                 ),
-              ),
 
-              // Center: Strict Space Mono Coordinates (Monochrome)
-              Expanded(
-                child: locationAsync.when(
-                  skipLoadingOnReload: true,
-                  skipLoadingOnRefresh: true,
-                  data:
-                      (pos) => Text(
-                        '${pos.latitude.toStringAsFixed(4)}°, ${pos.longitude.toStringAsFixed(4)}°',
-                        textAlign: TextAlign.center,
-                        style: GoogleFonts.spaceMono(
-                          fontSize: 12,
-                          color: AppColors.textPrimary(context),
-                          fontWeight: FontWeight.w400,
-                        ),
-                        overflow: TextOverflow.ellipsis,
+                // Center: Coordinates in Space Mono
+                Expanded(
+                  child: locationAsync.when(
+                    skipLoadingOnReload: true,
+                    skipLoadingOnRefresh: true,
+                    data: (pos) => Text(
+                      '${pos.latitude.toStringAsFixed(4)}°, ${pos.longitude.toStringAsFixed(4)}°',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        color: fg,
+                        fontWeight: FontWeight.w600,
                       ),
-                  loading:
-                      () => Text(
-                        'Acquiring...',
-                        textAlign: TextAlign.center,
-                        style: GoogleFonts.spaceMono(
-                          fontSize: 12,
-                          color: AppColors.textSecondary(context),
-                        ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    loading: () => Text(
+                      'Acquiring...',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: fgSec,
                       ),
-                  error:
-                      (e, _) => GestureDetector(
-                        onTap: onTap,
-                        child: Text(
-                          'Tap to set',
-                          textAlign: TextAlign.center,
-                          style: GoogleFonts.spaceMono(
-                            fontSize: 12,
-                            color: AppColors.textSecondary(
-                              context,
-                            ), // No red per rules
-                          ),
-                        ),
+                    ),
+                    error: (e, _) => Text(
+                      'Tap to set',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: fgSec,
                       ),
+                    ),
+                  ),
                 ),
-              ),
 
-              // Right: Theme switch icon
-              _ThemeToggleIcon(
-                themeMode: themeMode,
-                onTap: () => ref.read(themeProvider.notifier).toggleTheme(),
-              ),
+              // Right: balance spacer
+              // We use an empty SizedBox to balance the "GPS / MANUAL" block
+              // so the coordinates stay perfectly centered. Since the left block
+              // is dynamic now, we give a rough rough balance size or remove it.
+              // We'll keep width 54 for visual balance as it roughly matches the left.
+              const SizedBox(width: 54),
             ],
           ),
         ),
       ),
+    ),
     );
   }
 }
 
-class _ThemeToggleIcon extends StatefulWidget {
-  final ThemeMode themeMode;
-  final VoidCallback onTap;
 
-  const _ThemeToggleIcon({required this.themeMode, required this.onTap});
-
-  @override
-  State<_ThemeToggleIcon> createState() => _ThemeToggleIconState();
-}
-
-class _ThemeToggleIconState extends State<_ThemeToggleIcon> {
-  bool _isHovered = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
-      child: GestureDetector(
-        onTap: widget.onTap,
-        behavior: HitTestBehavior.opaque,
-        child: Opacity(
-          opacity: _isHovered ? 1.0 : 0.55,
-          child: Icon(
-            widget.themeMode == ThemeMode.light
-                ? Icons.dark_mode_outlined
-                : (widget.themeMode == ThemeMode.dark
-                    ? Icons.light_mode_outlined
-                    : Icons.brightness_auto_outlined),
-            color: AppColors.textPrimary(context),
-            size: 18,
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 // ─── Location Dialog Widget ──────────────────────────────────────────────────
 

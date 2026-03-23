@@ -82,6 +82,7 @@ class AppTheme {
     return ThemeData(
       useMaterial3: true,
       brightness: brightness,
+      fontFamily: GoogleFonts.inter().fontFamily,
       scaffoldBackgroundColor: backgroundColor,
       splashColor: Colors.transparent,
       highlightColor: Colors.transparent,
@@ -125,31 +126,33 @@ class AppTheme {
 
   static TextTheme _buildTextTheme(Color textPrimary) {
     return TextTheme(
-      // Hero display — Fraunces ExtraBold 72sp
-      // "Sun", "Wind", cardinal direction — the ONE big editorial word per screen
-      displayLarge: GoogleFonts.fraunces(
+      // Hero display — Inter Light 72sp (Replaces Fraunces)
+      // "Sun", "Wind", cardinal direction
+      displayLarge: GoogleFonts.inter(
         fontSize: 72,
-        fontWeight: FontWeight.w800,
+        fontWeight: FontWeight.w300,
         color: textPrimary,
         height: 0.95,
+        letterSpacing: -2.0,
       ),
-      // Sub-hero numerals — Space Mono 36sp (azimuth °, speed m/s)
-      displayMedium: GoogleFonts.spaceMono(
+      // Sub-hero numerals — Inter Regular 36sp (Replaces Space Mono)
+      displayMedium: GoogleFonts.inter(
         fontSize: 36,
         fontWeight: FontWeight.w400,
         color: textPrimary,
+        letterSpacing: -1.0,
       ),
-      // Data row label — Space Mono ALL CAPS 12sp, tracked 0.15em
-      titleLarge: GoogleFonts.spaceMono(
+      // Data row label — Inter SemiBold 12sp, tracked 1.8em
+      titleLarge: GoogleFonts.inter(
         fontSize: 12,
-        fontWeight: FontWeight.w400,
+        fontWeight: FontWeight.w600,
         color: textPrimary,
         letterSpacing: 1.8,
       ),
       // Capsule label variant — slightly dimmed
-      titleMedium: GoogleFonts.spaceMono(
+      titleMedium: GoogleFonts.inter(
         fontSize: 12,
-        fontWeight: FontWeight.w400,
+        fontWeight: FontWeight.w600,
         color: textPrimary.withAlpha(178),
         letterSpacing: 1.8,
       ),
@@ -163,19 +166,20 @@ class AppTheme {
       bodyMedium: GoogleFonts.inter(
         fontSize: 13,
         fontWeight: FontWeight.w400,
-        color: textPrimary.withAlpha(115),
+        color: textPrimary.withAlpha(150),
       ),
-      // Micro labels — Space Mono 11sp
-      labelLarge: GoogleFonts.spaceMono(
+      // Micro labels — Inter SemiBold 11sp
+      labelLarge: GoogleFonts.inter(
         fontSize: 11,
-        fontWeight: FontWeight.w400,
-        color: textPrimary.withAlpha(115),
-        letterSpacing: 1.4,
+        fontWeight: FontWeight.w600,
+        color: textPrimary.withAlpha(150),
+        letterSpacing: 1.2,
       ),
-      labelSmall: GoogleFonts.spaceMono(
+      labelSmall: GoogleFonts.inter(
         fontSize: 10,
-        fontWeight: FontWeight.w400,
-        color: textPrimary.withAlpha(89),
+        fontWeight: FontWeight.w600,
+        color: textPrimary.withAlpha(120),
+        letterSpacing: 1.0,
       ),
     );
   }

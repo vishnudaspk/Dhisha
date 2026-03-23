@@ -216,9 +216,10 @@ class _MinimalAltitudePainter extends CustomPainter {
     final tpAltValue = TextPainter(
       text: TextSpan(
         text: '${altitude.toStringAsFixed(1)}°',
-        style: GoogleFonts.spaceMono(
+        style: GoogleFonts.inter(
           fontSize: 36,
           fontWeight: FontWeight.w400,
+          letterSpacing: -1.0,
           color: AppColors.textPrimary(context),
         ),
       ),
@@ -258,7 +259,7 @@ class _MinimalAltitudePainter extends CustomPainter {
       final tpSun = TextPainter(
         text: TextSpan(
           text: '☀',
-          style: GoogleFonts.spaceMono(
+          style: GoogleFonts.inter(
             fontSize: 18,
             color: AppColors.sunAccent(
               context,
@@ -274,7 +275,7 @@ class _MinimalAltitudePainter extends CustomPainter {
       final tpMoon = TextPainter(
         text: TextSpan(
           text: '☽',
-          style: GoogleFonts.spaceMono(
+          style: GoogleFonts.inter(
             fontSize: 18,
             color: const Color(
               0xFF2E7BFF,
