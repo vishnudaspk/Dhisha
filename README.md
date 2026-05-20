@@ -1,4 +1,4 @@
-# Dhisha 📐 ☀️ 💨
+# Dhisha
 
 **Dhisha** is a specialized, beautifully designed mobile application crafted meticulously for **architects, urban planners, and site engineers**. The app provides hyper-accurate, real-time meteorological and astronomical data—specifically Sun positioning and Wind patterns—crucial for climate-responsive architectural design, site analysis, and construction planning.
 
@@ -6,7 +6,7 @@ Designed with a strict Dieter Rams-inspired minimalism and the aesthetic of high
 
 ---
 
-## 🏗 Why Dhisha is Essential for Architects & Engineers
+## Why Dhisha is Essential for Architects & Engineers
 
 In modern passive solar design and structural engineering, understanding the localized environment is non-negotiable. Dhisha empowers design professionals directly on the construction site:
 
@@ -14,7 +14,7 @@ In modern passive solar design and structural engineering, understanding the loc
 *   **Wind & Natural Ventilation:** The real-time atmospheric wind particle visualizer helps engineers understand macro and micro wind vectors. This data is critical for orienting building masses to capture cross-ventilation breezes, or for designing windbreaks and structural reinforcements against prevailing storm winds.
 *   **On-Site Orientation:** When standing on an empty lot, determining exact True North vs. Magnetic North can be prone to error. Dhisha fuses gyro, accelerometer, and GPS data into a perfectly calibrated 1.0° resolution True North compass, ensuring site plans are oriented flawlessly before ground is broken.
 
-## ⚙️ Mechanics & Under the Hood
+## Mechanics & Under the Hood
 
 Dhisha combines advanced local mathematical algorithms with real-time hardware fusion to deliver "scientific instrument" grade accuracy without internet dependency for its core solar calculations.
 
@@ -40,14 +40,14 @@ The Wind UI isn't a pre-rendered video—it is a live **Particle Physics System*
 
 ---
 
-## 🛠 Tech Stack
+## Tech Stack
 
 *   **Framework:** Flutter (Dart)
 *   **Architecture:** Riverpod (State Management)
 *   **Sensors:** `geolocator`, `flutter_compass`, `sensors_plus`
 *   **Design Language:** Custom minimalist design system using `CustomPaint` and `Canvas` APIs.
 
-## 🚀 Getting Started
+## Getting Started
 
 Since Dhisha relies heavily on native device sensors (GPS, Magnetometer) for its calculations, it must be run on a physical device. iOS requires Xcode builds, while Android can be built directly via standard Flutter commands.
 
